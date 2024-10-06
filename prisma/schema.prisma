@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Author {
+  id        Int        @id @default(autoincrement())
+  fname     String     @db.VarChar(128)
+  lname     String     @db.VarChar(128)
+  username  String     @unique @db.VarChar(128)
+  password  String     @db.VarChar(128)
+  createdAt DateTime   @default(now())
+  profile   Profile?
+  posts     Post[]
+  comments  Comments[]
+}
+
+model Profile {
+  id         Int     @id @default(autoincrement())
+  avatar_url String? @db.VarChar(255)
+  bio        String? @db.VarChar(300)
+  author     Author  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   Int     @unique
+}
+
+model Post {
+  id        Int        @id @default(autoincrement())
+  title     String     @db.VarChar(255)
+  content   String     @db.Text
+  image_url String?    @db.VarChar(255)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  published Boolean    @default(false)
+  comments  Comments[]
+  author    Author     @relation(fields: [authorId], references: [id])
+  authorId  Int
+}
+
+model User {
+  id       Int        @id @default(autoincrement())
+  username String     @unique @db.VarChar(255)
+  password  String    @db.VarChar(128)
+  Comments Comments[]
+}
+
+model Comments {
+  id        Int      @id @default(autoincrement())
+  text      String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int?
+  authorId  Int?
+  User      User?    @relation(fields: [userId], references: [id])
+  Author    Author?  @relation(fields: [authorId], references: [id])
+  Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+}
