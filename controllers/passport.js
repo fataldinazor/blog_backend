@@ -6,9 +6,7 @@ const passportJWT = require('passport-jwt');
 const JwtStrategy= passportJWT.Strategy;
 const ExtractJwt= passportJWT.ExtractJwt;
 
-const dotenv = require("dotenv");
-dotenv.config({ path: "../.env" });
-
+//middleware authenticates via localStrategy
 passport.use(
   new LocalStrategy(async (username, password, done) => {
     try {
@@ -34,13 +32,14 @@ const opts = {
   secretOrKey: process.env.JWT_SECRET
 };
 
+// middleware that checks whether the jwt token is valid or not 
 passport.use(
   new JwtStrategy(opts, function (jwt_payload, done) {
     try{
         if(jwt_payload){
             return done(null, jwt_payload);
         }else{
-            return done(null, false);
+            return done(null, false,{msg:"Token is Unauthorized"});
         };
     }catch(err){
         return done(err, false)
