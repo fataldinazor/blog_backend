@@ -23,7 +23,7 @@ model User {
   role      Role       @default(USER)
   profile   Profile?
   posts     Post[]
-  comments  Comments[]
+  comments  Comment[]
 }
 
 model Profile {
@@ -42,19 +42,19 @@ model Post {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   published Boolean    @default(false)
-  comments  Comments[]
-  user      User       @relation(fields: [userId], references: [id])
-  userId    Int
+  comments  Comment[]
+  user      User?       @relation(fields: [userId], references: [id])
+  userId    Int?
 }
 
-model Comments {
+model Comment {
   id        Int      @id @default(autoincrement())
   text      String   @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  userId    Int
-  User      User?    @relation(fields: [userId], references: [id])
-  Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    Int?
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    Int
 }
 

@@ -29,12 +29,14 @@ router.post(
 
 /*COMMENTS ON POST*/
 router.get(
-  "/:postId/comments",
+  "/:postId/comments/:page",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
   posts.getComments
 );
-router.posts=(
-  "/"
+router.post(
+  "/:postId/comment", 
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.createComment
 )
 
 module.exports = router;

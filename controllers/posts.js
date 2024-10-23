@@ -1,10 +1,13 @@
 const prisma = require("./prisma");
-const primsa = require("./prisma");
 
 // fetches all the posts
 const allPosts = async (req, res) => {
   try {
-    const posts = await prisma.post.findMany();
+    const posts = await prisma.post.findMany({
+      where:{
+        isPublished:true,
+      }
+    });
     return res.status(200).json(posts);
   } catch (err) {
     return res.status(500).json({ msg: "Internal Server Error" });
@@ -15,7 +18,7 @@ const allPosts = async (req, res) => {
 const postWithId = async (req, res) => {
   const { postId } = req.params;
   try {
-    const post = await primsa.post.findUnique({
+    const post = await prisma.post.findUnique({
       where: { id: parseInt(postId) },
     });
     if (!post) {
@@ -48,25 +51,61 @@ const createPost = async (req, res) => {
 };
 
 // get comments for a particular post
-const getComments= async(req, res)=>{
-  const postId = req.params;
-  try{
-    const comments = await prisma.comments.findMany({
-      where:{
-        postId:parseInt(postId)
+const getComments = async (req, res) => {
+  const {postId, page} = req.params;
+  const take=8;
+  const skip=(parseInt(page)-1) * take;
+  try {
+    const comments = await prisma.comment.findMany({
+      take:take,
+      skip:skip,
+      where: {
+        postId: parseInt(postId),
+      },
+      select:{
+        text:true,
+        updatedAt:true,
+        user:{
+          select:{
+            username:true,
+            role:true,
+          }
+        }
+      },
+      orderBy:{
+        updatedAt:"desc",
       }
-    })
+    });
     return res.status(201).json(comments);
-    // this will only give the comments and the userID associated with it
-    // still need to send the username associated with the comments
-  }catch(err){
-    res.status(500).json({msg:"Internal Server Error", error:err});
+  } catch (err) {
+    res.status(500).json({ msg: "Internal Server Error", error: err });
   }
-}
+};
+
+// creating a new comment on particular Post
+const createComment = async (req, res) => {
+  const { text } = req.body;
+  const userId = req.user.id;
+  const { postId } = req.params;
+  try {
+    const comment = await prisma.comment.create({
+      data: {
+        text: text,
+        userId: userId,
+        postId: parseInt(postId),
+      },
+    });
+    return res.status(201).json({ msg: "Comment Created", comment });
+  } catch (err) {
+    return res.status(500).json({ msg: "Internal Server Error", error: err });
+  }
+};
 
 module.exports = {
   allPosts,
   postWithId,
   createPost,
+
   getComments,
+  createComment,
 };

@@ -22,7 +22,19 @@ const authorizeRole=(requiredRoles)=>{
     }
 }
 
+// const authorizeById= (req, res, next)=>{
+//         const {id}=req.user;
+//         const {authorId} = req
+//         if(requiredId===id){
+//             return next();
+//         }
+//         return res.status(401).json({msg:"Forbidden: Insufficient Id"})
+
+//     }
+// }
+
 module.exports={
     verifyToken,
-    authorizeRole
+    authorizeRole,
+    // authorizeById
 }
