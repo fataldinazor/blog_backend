@@ -13,11 +13,23 @@ router.get(
   posts.allPosts
 );
 
+router.get(
+  "/authors/top",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.getTopAuthors
+)
+
 //route for getting a particular post
 router.get(
   "/:postId",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
   posts.postWithId
+);
+
+router.get(
+  "/:postId/more-posts",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.morePosts
 );
 
 //route for creating a new post
@@ -29,14 +41,41 @@ router.post(
 
 /*COMMENTS ON POST*/
 router.get(
-  "/:postId/comments/:page",
+  "/:postId/comments",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
   posts.getComments
 );
+
 router.post(
-  "/:postId/comment", 
+  "/:postId/comments",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
   posts.createComment
+);
+
+//get if user liked the post or not
+router.get(
+  "/:postId/likes",
+  authorize.authorizeRole(["USER","AUTHOR", "ADMIN"]),
+  posts.findUserLikedPost
 )
+
+//gets if the user bookmarked the post or not 
+router.get(
+  "/:postId/bookmarks",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.findUserBookmarkPost
+)
+
+router.post(
+  "/:postId/likes",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.toggleLike
+);
+
+router.post(
+  "/:postId/bookmarks",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  posts.toggleBookmark
+);
 
 module.exports = router;

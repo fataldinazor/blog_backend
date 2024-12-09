@@ -51,6 +51,17 @@ const passwordsMatch = body("password").custom((value, { req }) => {
   return true;
 });
 
+//checking user password and form password are same or not
+// used in transitionUser function
+const checkPassword = async (id, formPassword) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: id,
+    },
+  });
+  return await bcrypt.compare(formPassword, user.password);
+};
+
 //Register a new User with Author Role
 const createAuthor = [
   validateName,
@@ -82,13 +93,12 @@ const createAuthor = [
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
         expiresIn: "1d",
       });
-      res
-        .status(200)
-        .json({
-          user: payload,
-          token: token,
-          msg: "Author created Successfully!",
-        });
+      res.status(200).json({
+        success: true,
+        user: payload,
+        token: token,
+        msg: "Author created Successfully!",
+      });
     } catch (err) {
       res.status(500).json("Internal Server Error");
     }
@@ -101,8 +111,9 @@ const createUser = [
   usernameMatch,
   passwordsMatch,
   async (req, res) => {
-    console.log(req.headers);
+    console.log(req.body);
     const errors = validationResult(req);
+    console.log(errors);
     if (!errors.isEmpty()) {
       return res.status(400).json(errors);
     }
@@ -121,26 +132,18 @@ const createUser = [
       });
 
       res.status(201).json({
+        success: true,
         user: payload,
         token,
         msg: "User created Successfully!",
       });
     } catch (err) {
-      res.status(500).json({ status: 500, msg: "Internal Server Failure" });
+      res
+        .status(500)
+        .json({ success: false, status: 500, msg: "Internal Server Failure" });
     }
   },
 ];
-
-//checking user password and form password are same or not
-// used in transitionUser function
-const checkPassword=async (id, formPassword)=>{
-  const user= await prisma.user.findUnique({
-    where:{
-      id:id
-    }
-  })
-  return await bcrypt.compare(formPassword, user.password);
-}
 
 //Transition of Existing user to author status
 const transitionUser = [
@@ -152,7 +155,7 @@ const transitionUser = [
     const id = user.id;
     const { fname, lname, password } = req.body;
     try {
-      if(!checkPassword(id, password)){
+      if (!checkPassword(id, password)) {
         return res
           .status(400)
           .json({ msg: "The password doesn't link to the account" });
@@ -160,7 +163,7 @@ const transitionUser = [
 
       const updatedUser = await prisma.user.update({
         where: {
-          id:id,
+          id: id,
         },
         data: {
           fname: fname,
@@ -169,17 +172,19 @@ const transitionUser = [
         },
       });
       console.log("User updated:", updatedUser);
-      let payload = { id: updatedUser.id, username: updatedUser.username, role: updatedUser.role };
+      let payload = {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        role: updatedUser.role,
+      };
       let token = jwt.sign(payload, process.env.JWT_SECRET, {
         expiresIn: "1d",
       });
-      return res
-        .status(201)
-        .json({
-          user: payload,
-          token: token,
-          msg: "The User updated to Author status successfully!",
-        });
+      return res.status(201).json({
+        user: payload,
+        token: token,
+        msg: "The User updated to Author status successfully!",
+      });
     } catch (err) {
       console.error("Error during user update:", err);
 
@@ -195,9 +200,14 @@ const logUser = (req, res) => {
   passport.authenticate("local", { session: false }, (err, user, info) => {
     if (err || !user) {
       return res.status(400).json({
-        message: "Problem logging in",
+        success: false,
+        msg: "Problem logging in",
         user: user,
-        error: info ? info.message : "Login Failed",
+        error: err
+          ? err
+          : !user
+            ? "Invalid username or password."
+            : "Login Failed",
       });
     }
     const payload = { id: user.id, username: user.username, role: user.role };
@@ -205,7 +215,12 @@ const logUser = (req, res) => {
       expiresIn: "1d",
     });
 
-    return res.json({ user: payload, token, msg: "User logged in" });
+    return res.json({
+      success: true,
+      user: payload,
+      token,
+      msg: "User logged in",
+    });
   })(req, res);
 };
 

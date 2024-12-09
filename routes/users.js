@@ -21,7 +21,14 @@ router.get(
 // creation of author Profile 
 router.post(
   "/:authorId",
+  authorize.authorizeRole(["AUTHOR", "ADMIN"]),
   users.createAuthorProfile
+);
+
+router.put(
+  "/:authorId",
+  authorize.authorizeRole(["AUTHOR", "ADMIN"]),
+  users.updateAuthorProfile
 );
 
 //getting all the posts by an author
@@ -29,6 +36,18 @@ router.get(
   "/:authorId/posts",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
   users.getAuthorPosts
+);
+
+router.get(
+  "/:authorId/posts/published",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  users.getPublishedPosts
+)
+
+router.get(
+  "/:authorId/posts/unpublished",
+  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  users.getUnpublishedPosts
 );
 
 module.exports=router
