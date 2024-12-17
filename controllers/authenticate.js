@@ -5,6 +5,7 @@ const passport = require("passport");
 require("./passport");
 const jwt = require("jsonwebtoken");
 const authorize = require("./authorize");
+const { v4: uuidv4 } = require("uuid");
 
 //express-validator for validating username and password
 const validateUsernamePassword = [
@@ -71,7 +72,9 @@ const createAuthor = [
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json(errors);
+      return res
+        .status(400)
+        .json({ success: false, msg: errors || "Problem Registering you" });
     }
     const { fname, lname, username, password } = req.body;
     try {
@@ -111,11 +114,12 @@ const createUser = [
   usernameMatch,
   passwordsMatch,
   async (req, res) => {
-    console.log(req.body);
     const errors = validationResult(req);
     console.log(errors);
     if (!errors.isEmpty()) {
-      return res.status(400).json(errors);
+      return res
+        .status(400)
+        .json({ success: false, msg: errors || "Problem Registering you" });
     }
     const { username, password } = req.body;
     try {
@@ -187,7 +191,6 @@ const transitionUser = [
       });
     } catch (err) {
       console.error("Error during user update:", err);
-
       return res
         .status(500)
         .json({ msg: "Internal Server Failure", error: err.message });
@@ -197,31 +200,68 @@ const transitionUser = [
 
 //login existing user/Author
 const logUser = (req, res) => {
-  passport.authenticate("local", { session: false }, (err, user, info) => {
-    if (err || !user) {
-      return res.status(400).json({
-        success: false,
-        msg: "Problem logging in",
-        user: user,
-        error: err
-          ? err
-          : !user
-            ? "Invalid username or password."
-            : "Login Failed",
+  try {
+    passport.authenticate("local", { session: false }, (err, user, info) => {
+      if (err || !user) {
+        return res.status(400).json({
+          success: false,
+          msg: err
+            ? err
+            : !user
+              ? "Invalid username or password."
+              : "Login Failed",
+          user: user,
+        });
+      }
+      const payload = { id: user.id, username: user.username, role: user.role };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "1d",
       });
-    }
+
+      return res.json({
+        success: true,
+        user: payload,
+        token,
+        msg: "User logged in",
+      });
+    })(req, res);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      msg: "An unexpected error occurred",
+      error: error.message,
+    });
+  }
+};
+
+const guestLogin = async (req, res) => {
+  const guestUser = {
+    username: `guest_${uuidv4().slice(0, 8)}`,
+    password: `P@u${uuidv4().slice(0, 8)}`,
+  };
+  try {
+    const hashedPassword=await  bcrypt.hash(guestUser.password, 10);
+    const user = await prisma.user.create({
+      data: {
+        username: guestUser.username,
+        password: hashedPassword,
+      },
+    });
     const payload = { id: user.id, username: user.username, role: user.role };
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-
-    return res.json({
+    res.status(201).json({
       success: true,
       user: payload,
       token,
-      msg: "User logged in",
+      msg: "Guest user created Successfully!",
     });
-  })(req, res);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, error, msg: "Internal Server Failure" });
+  }
 };
 
 module.exports = {
@@ -229,4 +269,5 @@ module.exports = {
   createAuthor,
   transitionUser,
   logUser,
+  guestLogin,
 };

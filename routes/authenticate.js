@@ -6,5 +6,6 @@ router.post("/user/signup",authenticate.createUser);
 router.post("/author/signup", authenticate.createAuthor);
 router.post("/transition-author/signup", authenticate.transitionUser)
 router.post("/login", authenticate.logUser);
+router.post("/guest-login", authenticate.guestLogin)
 
 module.exports= router;

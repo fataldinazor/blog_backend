@@ -11,5 +11,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/v1/auth", routes.authenticate);
 app.use("/api/v1/posts", routes.posts);
 app.use("/api/v1/users", routes.users);
+app.use("/api/v1/homepage", routes.homepage)
 
 app.listen(PORT, () => console.log(`The server is listening at ${PORT}`));

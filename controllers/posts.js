@@ -1,5 +1,7 @@
-const { urlencoded } = require("express");
+// const { urlencoded } = require("express");
 const prisma = require("./prisma");
+const { extractPublicId } = require("../utils");
+const cloudinary = require("../cloudinaryConfig");
 
 // fetches all the posts
 const allPosts = async (req, res) => {
@@ -8,7 +10,12 @@ const allPosts = async (req, res) => {
       where: {
         published: true,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        image_url: true,
         user: {
           select: {
             username: true,
@@ -23,9 +30,9 @@ const allPosts = async (req, res) => {
         id: "desc",
       },
     });
-    return res.status(200).json(posts);
-  } catch (err) {
-    return res.status(500).json({ msg: "Internal Server Error " + err });
+    return res.status(200).json({ success: true, posts });
+  } catch (error) {
+    return res.status(500).json({ success: false, error });
   }
 };
 
@@ -38,6 +45,7 @@ const getTopAuthors = async (req, res) => {
         role: "AUTHOR",
       },
       select: {
+        id: true,
         username: true,
         fname: true,
         lname: true,
@@ -54,7 +62,7 @@ const getTopAuthors = async (req, res) => {
         },
       },
     });
-    return res.status(200).json(authors);
+    return res.status(200).json({ success: true, authors });
   } catch (error) {
     return res.status(500).json({ msg: `Internal server Error ${error}` });
   }
@@ -64,22 +72,44 @@ const getTopAuthors = async (req, res) => {
 const postWithId = async (req, res) => {
   const { postId } = req.params;
   try {
+    // checking if the post exists
+    const postExists = await prisma.post.findUnique({
+      where: { id: parseInt(postId) },
+      select: { id: true },
+    });
+
+    if (!postExists) {
+      return res
+        .status(404)
+        .json({ success: false, msg: "The Post doesn't Exist", status: 404 });
+    }
+
+    // fetch full post if it exists
     const post = await prisma.post.findUnique({
       where: { id: parseInt(postId) },
       include: {
-        user: { select: { username: true, id:true } },
+        user: {
+          select: {
+            username: true,
+            id: true,
+            profile: {
+              select: {
+                avatar_url: true,
+              },
+            },
+          },
+        },
         _count: { select: { comments: true, likes: true, bookmarks: true } },
       },
     });
-    if (!post) {
-      res.status(404).json({ msg: "The Post doesn't exist" });
-    }
-    res.status(200).json(post);
+
+    res.status(200).json({ success: true, post });
   } catch (err) {
-    res.status(500).json({ msg: "Internal Server Error", error: err });
+    res
+      .status(500)
+      .json({ success: false, msg: "Internal Server Error", error: err });
   }
 };
-
 
 //fetches suggested posts to user
 const morePosts = async (req, res) => {
@@ -103,15 +133,17 @@ const morePosts = async (req, res) => {
         updatedAt: true,
         user: {
           select: {
-            id:true,
+            id: true,
             username: true,
           },
         },
       },
     });
-    return res.status(200).json(posts);
+    return res.status(200).json({ success: true, posts });
   } catch (error) {
-    res.status(500).json({ msg: "Internal Server Error", error: error });
+    res
+      .status(500)
+      .json({ success: false, msg: "Internal Server Error", error: error });
   }
 };
 
@@ -126,9 +158,11 @@ const findUserLikedPost = async (req, res) => {
         userId_postId: { userId, postId },
       },
     });
-    return res.status(200).json({ liked: !!result });
+    return res.status(200).json({ success: true, liked: !!result });
   } catch (error) {
-    res.status(500).json({ msg: "Internal Server Error " + error });
+    res
+      .status(500)
+      .json({ success: false, msg: "Internal Server Error ", error: error });
   }
 };
 
@@ -143,9 +177,11 @@ const findUserBookmarkPost = async (req, res) => {
         userId_postId: { userId, postId },
       },
     });
-    return res.status(200).json({ bookmarked: !!result });
+    return res.status(200).json({ success: true, bookmarked: !!result });
   } catch (error) {
-    return res.status(500).json({ msg: "Internal Server Error " + error });
+    return res
+      .status(500)
+      .json({ success: false, msg: "Internal Server Error ", error });
   }
 };
 
@@ -163,9 +199,11 @@ const createPost = async (req, res) => {
         userId: id,
       },
     });
-    return res.status(200).json("The post is created");
+    return res.status(200).json({ success: true, msg: "The post is created" });
   } catch (err) {
-    return res.status(500).json({ msg: `Internal Server Error ${error}` });
+    return res
+      .status(500)
+      .json({ sucess: false, msg: `Internal Server Error ${error}` });
   }
 };
 
@@ -197,9 +235,11 @@ const getComments = async (req, res) => {
         updatedAt: "desc",
       },
     });
-    return res.status(201).json(comments);
+    return res.status(201).json({ success: true, comments });
   } catch (err) {
-    return res.status(500).json({ msg: `Internal Server Error ${error}` });
+    return res
+      .status(500)
+      .json({ success: false, msg: `Internal Server Error ${error}` });
   }
 };
 
@@ -216,9 +256,11 @@ const createComment = async (req, res) => {
         postId: parseInt(postId),
       },
     });
-    return res.status(201).json({ msg: "Comment Created" });
-  } catch (err) {
-    return res.status(500).json({ msg: `Internal Server Error ${error}` });
+    return res.status(201).json({ success: true, msg: "Comment Created" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, msg: `Internal Server Error ${error}` });
   }
 };
 
@@ -239,7 +281,7 @@ const toggleLike = async (req, res) => {
           id: existingLike.id,
         },
       });
-      return res.status(200).json({ msg: "Liked removed" });
+      return res.status(200).json({ success: true, msg: "Liked removed" });
     } else {
       await prisma.like.create({
         data: {
@@ -247,10 +289,12 @@ const toggleLike = async (req, res) => {
           postId,
         },
       });
-      return res.status(200).json({ msg: "Post Liked!" });
+      return res.status(200).json({ success: true, msg: "Post Liked!" });
     }
   } catch (error) {
-    return res.status(500).json({ msg: `Internal Server Error ${error}` });
+    return res
+      .status(500)
+      .json({ success: false, msg: `Internal Server Error ${error}` });
   }
 };
 
@@ -270,24 +314,79 @@ const toggleBookmark = async (req, res) => {
           id: existingBookmark.id,
         },
       });
-      return res.status(200).json({ msg: "Bookmark removed from Post" });
+      return res.status(200).json({ success: true, msg: "Bookmark Removed" });
     } else {
       await prisma.bookmark.create({
         data: { userId, postId },
       });
-      return res.status(200).json({ msg: "Post Bookmarked" });
+      return res.status(200).json({ success: true, msg: "Post Bookmarked" });
     }
   } catch (error) {
-    return res.status(500).json({ msg: `Internal Server Error ${error}` });
+    return res
+      .status(500)
+      .json({ success: false, msg: `Internal Server Error ${error}` });
   }
 };
 
-// update a post 
-// const editPostWithId=async (req, res)=>{
-//   const {postId}=req.params;
+// update a post
+const updatePostWithId = async (req, res) => {
+  const { postId } = req.params;
+  // const { id } = req.user;
+  const { old_image_url, image_url, content, title, published } = req.body;
+  if (old_image_url) {
+    const public_id = extractPublicId(old_image_url);
+    if (public_id) {
+      try {
+        await cloudinary.uploader.destroy(public_id);
+      } catch (error) {
+        console.error("Error deleting image", error);
+      }
+    }
+  }
 
-// }
+  try {
+    await prisma.post.update({
+      where: {
+        id: parseInt(postId),
+      },
+      data: {
+        title: title,
+        content: content,
+        image_url: image_url,
+        published: published,
+      },
+    });
+    return res.status(200).json({ msg: "Post Updated" });
+  } catch (error) {
+    return res.status(500).json(`Error ${error}`);
+  }
+};
 
+// delete a post
+const deletePostWithId = async (req, res) => {
+  const { image_url } = req.body;
+  if (image_url) {
+    const public_id = extractPublicId(image_url);
+    if (public_id) {
+      try {
+        await cloudinary.uploader.destroy(public_id);
+      } catch (error) {
+        console.error("Error deleting image", error);
+      }
+    }
+  }
+  const { postId } = req.params;
+  try {
+    await prisma.post.delete({
+      where: {
+        id: parseInt(postId),
+      },
+    });
+    return res.status(200).json({ msg: "Post Deleted" });
+  } catch (error) {
+    return res.status(500).json({ error, msg: "Failed to delete post" });
+  }
+};
 
 module.exports = {
   allPosts,
@@ -297,10 +396,13 @@ module.exports = {
   morePosts,
   findUserLikedPost,
   findUserBookmarkPost,
-  
+
   getComments,
   createComment,
 
   toggleLike,
   toggleBookmark,
+
+  updatePostWithId,
+  deletePostWithId,
 };

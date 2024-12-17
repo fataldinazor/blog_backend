@@ -26,6 +26,18 @@ router.get(
   posts.postWithId
 );
 
+router.put(
+  "/:postId",
+  authorize.authorizeRole(["AUTHOR", "ADMIN"]),
+  posts.updatePostWithId
+)
+
+router.delete(
+  "/:postId",
+  authorize.authorizeRole(["AUTHOR","ADMIN"]),
+  posts.deletePostWithId
+)
+
 router.get(
   "/:postId/more-posts",
   authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),

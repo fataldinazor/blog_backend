@@ -46,8 +46,13 @@ router.get(
 
 router.get(
   "/:authorId/posts/unpublished",
-  authorize.authorizeRole(["USER", "AUTHOR", "ADMIN"]),
+  authorize.authorizeRole(["AUTHOR", "ADMIN"]),
   users.getUnpublishedPosts
+);
+router.get(
+  "/:authorId/posts/bookmarks",
+  authorize.authorizeRole(["AUTHOR", "ADMIN"]),
+  users.getBookmarkedPosts
 );
 
 module.exports=router

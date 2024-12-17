@@ -1,12 +1,6 @@
 const prisma = require("./prisma");
 const cloudinary = require("../cloudinaryConfig");
-
-// Function to extract public_id from a URL
-function extractPublicId(imageUrl) {
-  const regex = /\/v\d+\/(.+)\.\w+$/; // Matches `/v<version>/<public_id>.<extension>`
-  const match = imageUrl.match(regex);
-  return match ? match[1] : null; // Returns public_id or null if not found
-}
+const { extractPublicId } = require("../utils");
 
 // get all the author
 const getAllAuthors = async (req, res) => {
@@ -62,7 +56,7 @@ const createAuthorProfile = async (req, res) => {
 const getAuthorPage = async (req, res) => {
   const { authorId } = req.params;
   try {
-    const author = await prisma.user.findUnique({
+    const authorInfo = await prisma.user.findUnique({
       where: {
         id: parseInt(authorId),
       },
@@ -82,9 +76,9 @@ const getAuthorPage = async (req, res) => {
         _count: { select: { posts: true, comments: true, likes: true } },
       },
     });
-    res.status(200).json(author);
+    res.status(200).json({success:true, authorInfo});
   } catch (error) {
-    return res.status(500).json({ msg: "Internal Server Error", error });
+    return res.status(500).json({success:false, msg: "Internal Server Error", error });
   }
 };
 
@@ -118,9 +112,11 @@ const updateAuthorProfile = async (req, res) => {
         },
       },
     });
-    return res.status(200).json({ msg: "Profile update successfull" });
+    return res
+      .status(200)
+      .json({ success: true, msg: "Profile update successful" });
   } catch (error) {
-    return res.status(500).json({ error });
+    return res.status(500).json({ success: false, error });
   }
 };
 
@@ -147,13 +143,26 @@ const getPublishedPosts = async (req, res) => {
         userId: parseInt(authorId),
         published: true,
       },
-      include: {
-        user: true,
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        published: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
-    return res.status(200).json(posts);
+    return res.status(200).json({ success: true, posts });
   } catch (error) {
-    return res.status(500).json({ msg: "Internal Server Error", error });
+    return res.status(500).json({ success: false, error });
   }
 };
 
@@ -165,17 +174,60 @@ const getUnpublishedPosts = async (req, res) => {
         userId: parseInt(authorId),
         published: false,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        published: true,
         user: {
           select: {
+            id: true,
             username: true,
           },
         },
       },
+      orderBy: {
+        updatedAt: "desc",
+      },
     });
-    return res.status(200).json(posts);
+    return res.status(200).json({ success: true, posts });
   } catch (error) {
-    return res.status(500).json({ msg: "Internal Server Error", posts });
+    return res.status(500).json({ success: false, error });
+  }
+};
+
+const getBookmarkedPosts = async (req, res) => {
+  const { authorId } = req.params;
+  try {
+    const posts = await prisma.bookmark.findMany({
+      where: {
+        userId: parseInt(authorId),
+      },
+      select: {
+        post: {
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            createdAt: true,
+            updatedAt: true,
+            published:true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const formattedPosts = posts.map((bookmark) => bookmark.post);
+    return res.status(200).json({ success: true, posts: formattedPosts });
+  } catch (error) {
+    return res.status(500).json({ success: false, error });
   }
 };
 
@@ -189,4 +241,5 @@ module.exports = {
 
   getPublishedPosts,
   getUnpublishedPosts,
+  getBookmarkedPosts,
 };
